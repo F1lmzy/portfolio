@@ -146,6 +146,42 @@ def main() -> int:
                 unreadable.append(f"{name} {token} {contrast(value, bg):.2f}:1")
     check(not missing_derived, f"themes with no derived colour: {missing_derived[:5]}")
     check(not unreadable, f"theme colours under their floor: {unreadable[:5]}")
+    # ---- a theme that has colour in it must not get a grey accent.
+    # darling is white-on-pink upstream: its accent is #ffffff, which cannot be
+    # lifted into anything but a neutral, so it borrows the theme's own red. Getting
+    # this wrong is what put a grey name on a pink page.
+    def saturation(value: str) -> float:
+        h = value.lstrip("#")
+        if len(h) == 3:
+            h = "".join(c * 2 for c in h)
+        r, g, b = (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+        return max(r, g, b) - min(r, g, b)
+
+    grey_accents = []
+    for m in themes:
+        split = themes_css.split(f'[data-theme="{m["name"]}"] {{', 1)
+        block = split[1].split("\n}", 1)[0] if len(split) > 1 else ""
+        bg, main, sub = m["swatch"][0], m["swatch"][1], m["swatch"][2]
+        accent = token_of(block, "--accent")
+        if not accent or not bg:
+            continue
+        # the theme's own accent failed as type, and a colourful secondary colour was
+        # available to take a hue from, so a neutral accent here is the bug
+        if (contrast(main, bg) < 4.5 and saturation(main) < 0.05
+                and saturation(sub) >= 0.2 and saturation(accent) < 0.05):
+            grey_accents.append(f'{m["name"]} {main}->{accent} (sub {sub})')
+    check(not grey_accents,
+          f"themes given a grey accent despite having colour: {grey_accents[:4]}")
+    # and the specific themes this was reported for carry their hue
+    for name, hue in (("darling", "red"), ("menthol", "green"), ("strawberry", "crimson"),
+                      ("creamsicle", "orange"), ("mizu", "blue"), ("lavender", "violet")):
+        if name not in names:
+            continue
+        block = themes_css.split(f'[data-theme="{name}"] {{', 1)[1].split("\n}", 1)[0]
+        accent = token_of(block, "--accent")
+        check(bool(accent) and saturation(accent) > 0.05,
+              f"{name} lost its {hue} accent: {accent}")
+
     # the accent must actually be the theme's own hue, not a grey: the lifted colour
     # should stay near the hue of the raw "main" it came from
     sampled = [n for n in ("serika", "nord_light", "honey", "vaporwave", "frozen_llama")

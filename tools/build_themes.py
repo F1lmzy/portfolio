@@ -286,6 +286,17 @@ def _oklch_to_rgb(L: float, a: float, b: float) -> tuple[float, float, float]:
 
 CHROMA_CAP = 1.5
 
+# OKLCH chroma below which a colour is effectively colourless. Such a colour cannot
+# be lifted into anything but a neutral (Monkeytype's darling is white type on pink,
+# and lifting white only ever produces grey), so it borrows the theme's own hue
+# instead. Above this, however faint, the colour keeps the hue it already has:
+# graen's accent is a muted tan and should stay tan, not adopt another colour.
+NEUTRAL = 0.015
+# a colour worth borrowing a hue from must actually be colourful
+HUE_FLOOR = 0.02
+# body copy may borrow a hue, but only a whisper of one: prose is for reading
+PROSE_CHROMA = 0.03
+
 
 def _at(L: float, C: float, H: float, cap: float = CHROMA_CAP) -> str | None:
     """The colour at this lightness: chroma as high as sRGB allows at that
@@ -318,7 +329,34 @@ def _hex_of(rgb: tuple[float, float, float]) -> str:
     )
 
 
-def lift(colour: str, bg: str, target: float = 4.5) -> str:
+def _chroma(colour: str) -> float:
+    return hex_to_oklch(colour)[1]
+
+
+def hue_source(theme: dict, exclude: str) -> str | None:
+    """The most colourful text-side colour this theme ships.
+
+    For the themes whose accent or body colour is white, grey or black, lifting is
+    the wrong tool on its own: a neutral can only become another neutral, which is
+    how `darling` ended up with a grey name on a pink page. The hue is taken from
+    the theme's own palette instead, in the order that best matches how the colour
+    is used.
+
+    Both `error` and `caret` are deliberately not candidates. Taking a hue from
+    `error` would paint a monochrome theme's headings red, and `caret` is a cursor
+    highlight rather than a text colour: stealth is near-black with an orange caret,
+    and borrowing that would hand a stealth theme bright orange headings. A theme
+    with no colour in its text colours keeps the neutral lift.
+    """
+    for key in ("text", "sub", "subAlt"):
+        value = theme.get(key)
+        if value and value.lower() != exclude.lower() and _chroma(value) >= HUE_FLOOR:
+            return value
+    return None
+
+
+def lift(colour: str, bg: str, target: float = 4.5,
+         hue_from: str | None = None, chroma: float | None = None) -> str:
     """Move a colour's lightness until it clears `target` against `bg`, keeping its
     hue and as much chroma as the sRGB gamut allows.
 
@@ -333,6 +371,10 @@ def lift(colour: str, bg: str, target: float = 4.5) -> str:
     if contrast(colour, bg) >= target:
         return colour
     L, C, H = hex_to_oklch(colour)
+    if hue_from and C < NEUTRAL:
+        # this colour has no hue to keep, so take the theme's own
+        H = hex_to_oklch(hue_from)[2]
+        C = chroma if chroma is not None else _chroma(hue_from)
     reachable: list[tuple[float, str]] = []
     for lighten in (True, False):
         end = _at(1.0 if lighten else 0.0, C, H)
@@ -391,7 +433,10 @@ def muted_colour(theme: dict) -> str:
 
 
 def text_colour(theme: dict) -> str:
-    return lift(theme["text"], theme["bg"], 4.5)
+    """Body copy: the theme's own text colour, lifted, with a hint of the theme's
+    hue when that colour is a neutral that would otherwise turn dead grey."""
+    return lift(theme["text"], theme["bg"], 4.5,
+                hue_from=hue_source(theme, theme["text"]), chroma=PROSE_CHROMA)
 
 
 def accent_colour(theme: dict, target: float = 4.5) -> str:
@@ -401,9 +446,11 @@ def accent_colour(theme: dict, target: float = 4.5) -> str:
     background it is often below text contrast: 82 of 187 themes fail 4.5:1, and
     serika's yellow on its light grey is the worst at 1.46:1. Headings, links and
     the name are exactly where that signature colour belongs, so it is lifted
-    rather than abandoned for grey.
+    rather than abandoned for grey. Where `main` is itself colourless, the hue comes
+    from the theme's palette, so a pink theme does not get grey headings.
     """
-    return lift(theme["main"], theme["bg"], target)
+    return lift(theme["main"], theme["bg"], target,
+                hue_from=hue_source(theme, theme["main"]))
 
 
 def map_selector_part(sel: str) -> str | None:
