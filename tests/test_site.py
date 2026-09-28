@@ -136,13 +136,35 @@ def main() -> int:
         ("Kabam Robotics", "Kabam experience entry"),
         ("Institute of High Performance Computing", "A*STAR experience entry"),
         ("StereoGS", "bachelor thesis"),
-        ("10.14445/22315381/IJETT-V73I1P123", "2025 publication DOI"),
-        ("10.14445/23488379/IJEEE-V11I12P106", "2024 publication DOI"),
-        ("cited by 5", "citation count from Crossref"),
+        # all six journal articles, including the four the resume omits
+        ("Sensors and Actuators A: Physical", "Elsevier journal article"),
+        ("10.1016/j.sna.2025.117170", "Elsevier DOI"),
+        ("Hilbert-Huang", "2026 tool wear paper"),
+        ("10.14445/23488379/IJEEE-V13I2P104", "2026 DOI"),
+        ("Federated Learning-Based", "2024 federated learning paper"),
+        ("10.14445/23488549/IJECE-V11I9P120", "IJECE DOI"),
+        ("Comparative Analysis of MLP, CNN, RNN", "2024 deep learning paper"),
+        ("10.14445/23488379/IJEEE-V11I9P127", "IJEEE 11(9) DOI"),
+        ("10.14445/22315381/IJETT-V73I1P123", "IJETT DOI"),
+        ("10.14445/23488379/IJEEE-V11I12P106", "IJEEE 11(12) DOI"),
+        ("cited by 8", "highest citation count"),
+        ("6 journals", "publication count"),
+        ("28 citations", "total citations"),
         ("github/F1lmzy", "GitHub link"),
         ("cv.pdf", "CV link"),
     ]:
         check(needle in html, f"missing from the page: {label}")
+
+    # ---- the layout is the two-column works grid, not one long column
+    check('class="works-row"' in html, "the works grid is missing")
+    check(html.count('class="works-col"') == 2,
+          f"expected 2 works columns, found {html.count('class=\"works-col\"')}")
+    # ---- and the entries are title-only: no leftover descriptions
+    for gone, label in [("data-topics=", "publication topic attributes"),
+                        ("data-kind=", "project kind attributes"),
+                        ('class="tag"', "topic tag chips"),
+                        ("details class=\"drawer\"", "project detail drawers")]:
+        check(gone not in html, f"stale description markup still present: {label}")
 
     # ---- no em dashes anywhere in the visible copy, per the user's standing rule
     visible = re.sub(r"<script.*?</script>|<style.*?</style>", "", html, flags=re.S)
@@ -158,18 +180,17 @@ def main() -> int:
 
     # ---- the interactive hooks the script depends on still exist
     for cls in ("theme-item", "theme-preview", "theme-toolbar", "theme-list",
-                "filter-nav", "section", "entry"):
+                "section", "entry", "listing", "year-col", "works-row",
+                "works-col"):
         check(cls in parser.classes, f"markup lost the .{cls} hook")
     for el_id in ("theme-list", "theme-search", "theme-filter", "theme-count",
-                  "theme-preview", "theme-current", "theme-random", "pub-list",
-                  "project-list", "contact"):
+                  "theme-preview", "theme-current", "theme-random", "contact"):
         check(el_id in parser.ids, f"markup lost #{el_id}")
 
     # ---- app.js and style.css reference the same ids/classes they select
     app_js = (STATIC / "app.js").read_text(encoding="utf-8")
     for selector in ("theme-list", "theme-search", "theme-filter", "theme-count",
-                     "theme-preview", "theme-current", "theme-random",
-                     "pub-list", "project-list"):
+                     "theme-preview", "theme-current", "theme-random"):
         check(f'"{selector}"' in app_js, f"app.js no longer handles {selector}")
     check("data-theme" in app_js, "app.js does not set data-theme")
     check("localStorage" in app_js, "app.js does not persist the theme")

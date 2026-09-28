@@ -1,9 +1,9 @@
 /* The whole client-side script for the site. No framework: the state here is
-   local and tiny (the chosen theme, a search box, two filters), so plain DOM
-   code is the shortest honest answer.
+   local and tiny (the chosen theme, a search box, a category filter), so plain
+   DOM code is the shortest honest answer.
 
-   Everything degrades: with JavaScript off the complete page is still there, the
-   filters simply do not narrow, and the default Monkeytype theme applies.        */
+   Degrades cleanly: with JavaScript off the complete page is still there, all
+   themes are still listed, and the default Monkeytype theme applies. */
 (function () {
   "use strict";
 
@@ -44,7 +44,7 @@
 
   /* --------------------------------------------------------------- picker */
 
-  function visible(row) {
+  function isVisible(row) {
     if (!search || !kindFilter) return true;
     var query = search.value.trim().toLowerCase();
     if (query && row.getAttribute("data-name").indexOf(query) === -1) return false;
@@ -57,7 +57,7 @@
     if (!picker) return;
     var shown = 0;
     picker.querySelectorAll(".theme-item").forEach(function (row) {
-      var keep = visible(row);
+      var keep = isVisible(row);
       row.hidden = !keep;
       if (keep) shown++;
     });
@@ -70,7 +70,7 @@
       var row = evt.target.closest(".theme-item");
       if (row) applyTheme(row.getAttribute("data-theme-name"), true);
     });
-    /* hover or keyboard focus shows a theme in the preview pane only */
+    /* hovering or focusing a row previews it in the pane, without committing */
     picker.addEventListener("mouseover", function (evt) {
       var row = evt.target.closest(".theme-item");
       if (row) previewTheme(row.getAttribute("data-theme-name"));
@@ -104,31 +104,6 @@
     });
   }
 
-  /* -------------------------------------------------------------- filters */
-
-  function wireFilter(kind, listId, attr) {
-    var list = document.getElementById(listId);
-    var nav = document.querySelector('[data-filter="' + kind + '"]');
-    if (!list || !nav) return;
-    nav.addEventListener("click", function (evt) {
-      var btn = evt.target.closest("button[data-" + kind + "]");
-      if (!btn) return;
-      var want = btn.getAttribute("data-" + kind);
-      nav.querySelectorAll("button").forEach(function (b) {
-        var on = b === btn;
-        b.classList.toggle("active", on);
-        b.setAttribute("aria-pressed", on ? "true" : "false");
-      });
-      list.querySelectorAll("[data-" + attr + "]").forEach(function (entry) {
-        var keys = " " + entry.getAttribute("data-" + attr) + " ";
-        entry.hidden = want !== "all" && keys.indexOf(" " + want + " ") === -1;
-      });
-    });
-  }
-
-  wireFilter("topic", "pub-list", "topics");
-  wireFilter("kind", "project-list", "kind");
-
   /* ------------------------------------------------------------ shortcuts */
 
   document.addEventListener("keydown", function (evt) {
@@ -147,8 +122,8 @@
     search.select();
   });
 
-  /* restore the saved theme (the inline <head> script already did it before
-     paint; this keeps the labels in step) */
+  /* the inline <head> script already applied the saved theme before first paint;
+     this keeps the labels and the preview pane in step with it */
   applyTheme(currentTheme(), false);
   refreshPicker();
 })();

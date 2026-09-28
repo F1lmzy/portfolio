@@ -9,11 +9,11 @@ Live at **https://f1lmzy.github.io/portfolio/**
 
 ## What it is
 
-A single static page: header, then sections in the order the resume uses (about,
-publications, bachelor thesis, projects, experience, education, skills), with
-year-grouped rows, hairline rules between entries, monospace for years and meta,
-and collapsing `[more]` drawers. One centred column, no images, no trackers, no
-third-party requests: the page works offline and with JavaScript disabled.
+A single static page: a header, then a two-column works grid that uses the full
+width. Left column: about, publications, bachelor thesis, technical skills.
+Right column: education, experience, projects. Rows are year-grouped with
+hairline rules, and each entry is title-first with one meta line, so the whole
+page is about three screens instead of a long scroll.
 
 The theme feature is Monkeytype's: **all 187 themes**, each carrying its exact
 upstream colour tokens, and 47 of them also their own custom CSS (the animated
@@ -29,11 +29,10 @@ clear the site would be hosted on GitHub Pages.
 htmx's model is that the *server* holds state and answers with HTML. On Pages
 there is no server, so every request would fetch a file that could not depend on
 what the visitor did. Alpine is designed for exactly this client-side state, but
-the state here is tiny: the chosen theme, a search box, two filters and a random
-button. That is about 140 lines of plain DOM code, so the honest answer was
-neither library. What htmx would have bought (fragment URLs for the filters) is
-worth little for two publications and ten projects, and costs a round trip to
-show them.
+the state here is tiny: the chosen theme, a search box, a category filter and a
+random button. That is about 120 lines of plain DOM code, so the honest answer
+was neither library. What htmx would have bought (fragment URLs) is worth little
+for six publications and ten projects, and costs a round trip to show them.
 
 So everything is pre-rendered by `build.py` and `static/app.js` handles the
 interaction. It degrades cleanly: with JavaScript off the whole page is still
@@ -47,7 +46,7 @@ there, all themes are still listed, and the default Monkeytype theme applies.
 | `render.py` | all HTML generation |
 | `content.py` | the only content file: resume facts, publications, projects |
 | `static/style.css` | layout and typography, driven by the theme tokens |
-| `static/app.js` | theme switching, search, filters, random, `/` shortcut |
+| `static/app.js` | theme switching, search, random, `/` shortcut |
 | `static/cv.pdf` | the CV the `cv.pdf` link points at |
 | `static/themes.css` | GENERATED: 187 `[data-theme]` blocks + ported CSS |
 | `static/themes.json` | GENERATED: picker metadata (name, swatches, flags) |
@@ -96,10 +95,14 @@ background is saturated mid-luminance, where black reaches 10:1 and white only 2
 
 ## Content
 
-All facts live in `content.py`. Publications carry venue, volume, pages and
-citation counts from the DOI records (Crossref). Each project is a repository on
-the user's own GitHub with a README behind the description; the two entries with
-no public repository say so rather than quoting results.
+All facts live in `content.py`. The six journal articles, their venues, volumes,
+pages and citation counts come from the DOI records (Crossref), and the list
+itself was assembled from OpenAlex's author record for "Sri Rajkavin AV" and
+cross-checked against Crossref's author query: the resume only carries two of the
+six. The 2026 title is the publisher's own (Crossref holds a truncated "Signal"
+for that DOI). Three preprint duplicates are deliberately excluded. Each project
+is a repository on the user's own GitHub with a README behind the description;
+the two entries with no public repository say so rather than quoting results.
 
 ## Licences
 

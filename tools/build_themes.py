@@ -65,6 +65,10 @@ NAV_MAP = {
 SELECTOR_MAP = {
     '[data-ui-element="logoText"]': ".brand-name",
     '[data-ui-element="logoSubtext"]': ".brand-sub",
+    # the preview pane reproduces the same markup outside <header>, so drop the
+    # header scoping once the logo hooks have been rewritten
+    ".site-header .brand-name": ".brand-name",
+    ".site-header .brand-sub": ".brand-sub",
     '[data-ui-element="logo"]:hover h1': ".brand:hover",
     '[data-ui-element="logo"]:hover': ".brand:hover",
     '[data-ui-element="logo"] h1': ".brand",
