@@ -49,6 +49,7 @@ def main() -> int:
 
     # pages
     (out / "index.html").write_text(render.index_page(), encoding="utf-8")
+    (out / "themes.html").write_text(render.themes_page(), encoding="utf-8")
     (out / "404.html").write_text(render.not_found_page(), encoding="utf-8")
 
     # assets
@@ -74,8 +75,10 @@ def main() -> int:
 
     themes = json.loads(themes_json.read_text(encoding="utf-8"))
     index = (out / "index.html").read_text(encoding="utf-8")
+    themes_html = (out / "themes.html").read_text(encoding="utf-8")
     print(f"built {out.relative_to(ROOT)}/")
-    print(f"  index.html    {len(index):>8,} bytes   ({len(themes)} themes inline)")
+    print(f"  index.html    {len(index):>8,} bytes   (portfolio)")
+    print(f"  themes.html   {len(themes_html):>8,} bytes   ({len(themes)} themes)")
     print(f"  404.html")
     print(f"  static/themes.css {themes_css.stat().st_size:>8,} bytes")
     print(f"  cv.pdf        {cv_note}")

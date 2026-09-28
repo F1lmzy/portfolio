@@ -308,10 +308,10 @@ button:hover, .btn:hover {
   text-transform: uppercase;
 }
 
-.theme-preview .brand { font-size: 1.1rem; margin-bottom: .1rem; }
+.theme-preview .brand { font-size: 1.35rem; margin-bottom: .1rem; }
 .theme-preview .brand .caret { width: .38rem; height: .95rem; }
 .theme-preview .site-nav { margin: .1rem 0 .55rem; gap: .2rem .3rem; }
-.theme-preview .site-nav a { pointer-events: none; font-size: .78rem; }
+.theme-preview .site-nav a { pointer-events: none; font-size: .82rem; }
 .theme-preview .brand-sub { margin: 0 0 .4rem; font-size: .85rem; }
 .theme-preview .preview-line { font-size: .82rem; margin-bottom: .2rem; max-width: none; }
 .theme-preview .preview-line .caret { width: .3rem; height: .8rem; vertical-align: -.08rem; }
@@ -360,20 +360,12 @@ button:hover, .btn:hover {
   margin-left: auto;
 }
 
+/* The picker now has its own page, so the list flows with the page instead of
+   scrolling inside a box. */
 .theme-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
   gap: .15rem .6rem;
-  max-height: 20rem;
-  overflow-y: auto;
-  padding-right: .3rem;
-  scrollbar-width: thin;
-}
-
-.theme-list::-webkit-scrollbar { width: 8px; }
-.theme-list::-webkit-scrollbar-thumb {
-  background: var(--line);
-  border-radius: 99px;
 }
 
 .theme-item {

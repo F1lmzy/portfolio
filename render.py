@@ -205,20 +205,21 @@ def theme_item(theme: dict, current: str) -> str:
 
 def preview_pane(current: str) -> str:
     """A live mock of the page rendered with real site classes, so whichever theme
-    is hovered in the picker shows up here."""
+    is hovered in the picker shows up here. Its links are inert (CSS disables
+    pointer events) but point at real destinations so no anchor is dead."""
     return (
         f'<div class="theme-preview" id="theme-preview" data-theme="{esc(current)}">'
         '<div class="brand"><span class="brand-inner">'
         '<span class="brand-name">Kavin Sriraj</span></span>'
         '<span class="caret" aria-hidden="true"></span></div>'
-        '<p class="brand-sub">Electrical Engineering undergraduate &middot; Singapore</p>'
+        '<p class="brand-sub">Final-year Electrical Engineering student &middot; Singapore</p>'
         '<ul class="site-nav">'
-        '<li><a data-nav-item="about" href="#about">about</a></li>'
-        '<li><a data-nav-item="publications" href="#publications">papers</a></li>'
-        '<li><a data-nav-item="projects" href="#projects">projects</a></li>'
-        '<li><a data-nav-item="experience" href="#experience">experience</a></li>'
-        '<li><a data-nav-item="themes" href="#themes">themes</a></li>'
-        '<li><a data-nav-item="contact" href="#contact">contact</a></li>'
+        '<li><a data-nav-item="about" href="index.html#about">about</a></li>'
+        '<li><a data-nav-item="publications" href="index.html#publications">papers</a></li>'
+        '<li><a data-nav-item="projects" href="index.html#projects">projects</a></li>'
+        '<li><a data-nav-item="experience" href="index.html#experience">experience</a></li>'
+        '<li><a data-nav-item="themes" href="themes.html">themes</a></li>'
+        '<li><a data-nav-item="contact" href="index.html#contact">contact</a></li>'
         "</ul>"
         '<p class="preview-line">Fault diagnosis, computer vision and embedded '
         'firmware.<span class="caret" aria-hidden="true"></span></p>'
@@ -232,11 +233,12 @@ def theme_section(current: str) -> str:
         "themes", "Theme",
         f'<p class="small dim">All {len(THEMES)} Monkeytype themes, with the exact '
         "upstream colour tokens and each theme&rsquo;s own custom CSS. Hover to "
-        "preview, click to wear it; the choice is stored locally in your browser. "
-        "Press <kbd>/</kbd> to search.</p>"
+        "preview, click to wear it; the choice is stored locally in your browser "
+        "and follows you back to the "
+        '<a href="index.html">portfolio</a>. Press <kbd>/</kbd> to search.</p>'
         + '<noscript><p class="small">JavaScript is off, so the picker cannot '
-          f'switch themes: you are seeing <strong>{esc(current)}</strong>. The rest '
-          "of the page works normally.</p></noscript>"
+          f'switch themes: you are seeing <strong>{esc(current)}</strong>. The '
+          "list below still shows every theme.</p></noscript>"
         + preview_pane(current)
         + '<div class="theme-toolbar">'
           '<input type="search" id="theme-search" placeholder="search themes"'
@@ -258,25 +260,27 @@ def theme_section(current: str) -> str:
 
 # ----------------------------------------------------------------------- shell
 
-def nav_html() -> str:
+def nav_html(current: str = "") -> str:
     items = [
-        ("about", "about", "#about"),
-        ("publications", "papers", "#publications"),
-        ("thesis", "thesis", "#thesis"),
-        ("projects", "projects", "#projects"),
-        ("experience", "experience", "#experience"),
-        ("education", "education", "#education"),
-        ("themes", "themes", "#themes"),
+        ("about", "about", "index.html#about"),
+        ("publications", "papers", "index.html#publications"),
+        ("thesis", "thesis", "index.html#thesis"),
+        ("projects", "projects", "index.html#projects"),
+        ("experience", "experience", "index.html#experience"),
+        ("education", "education", "index.html#education"),
+        ("themes", "themes", "themes.html"),
         ("contact", "contact", f'mailto:{C.CONTACT["email"]}'),
     ]
     lis = "".join(
-        f'<li><a href="{esc(href)}" data-nav-item="{esc(slot)}">{esc(label)}</a></li>'
+        f'<li><a href="{esc(href)}" data-nav-item="{esc(slot)}"'
+        f'{" aria-current=\"true\"" if slot == current else ""}>'
+        f"{esc(label)}</a></li>"
         for slot, label, href in items
     )
     return f'<ul class="site-nav">{lis}</ul>'
 
 
-def header_html() -> str:
+def header_html(current: str = "") -> str:
     c = C.CONTACT
     return (
         '<header class="site-header">'
@@ -290,7 +294,7 @@ def header_html() -> str:
         f'<a href="{esc(c["github"])}">github/{esc(c["github_handle"])}</a>'
         f'<a href="{esc(c["linkedin"])}">linkedin/{esc(c["linkedin_handle"])}</a>'
         f'<a href="{esc(c["cv"])}">cv.pdf</a>'
-        "</div>" + nav_html() + "</header>"
+        "</div>" + nav_html(current) + "</header>"
     )
 
 
@@ -300,7 +304,7 @@ def footer_html(current: str) -> str:
         '<footer class="site-footer" id="contact">'
         f'<span>theme <span class="theme-current" id="theme-current">'
         f"{esc(current)}</span></span>"
-        f"<span>{len(THEMES)} Monkeytype themes</span>"
+        f'<a href="themes.html">{len(THEMES)} Monkeytype themes</a>'
         f'<a href="mailto:{esc(c["email"])}">{esc(c["email"])}</a>'
         f'<a href="{esc(c["github"])}">github</a>'
         f'<a href="{esc(c["linkedin"])}">linkedin</a>'
@@ -338,7 +342,6 @@ def index_page() -> str:
         + f'<div class="works-col">{left}</div>'
         + f'<div class="works-col">{right}</div>'
         + "</div>"
-        + theme_section(DEFAULT_THEME)
         + "</main>"
         + footer_html(DEFAULT_THEME)
     )
@@ -347,6 +350,24 @@ def index_page() -> str:
         body,
         "Kavin Sriraj, Electrical Engineering undergraduate at the National "
         "University of Singapore. Publications, projects, thesis and experience.",
+    )
+
+
+def themes_page() -> str:
+    """The theme picker lives on its own page: the portfolio stays a portfolio,
+    and this page is itself the preview of whatever theme is picked."""
+    body = (
+        header_html("themes")
+        + "<main>"
+        + theme_section(DEFAULT_THEME)
+        + "</main>"
+        + footer_html(DEFAULT_THEME)
+    )
+    return shell(
+        "Themes \u00b7 " + C.NAME,
+        body,
+        f"All {len(THEMES)} Monkeytype themes, with their upstream colour tokens "
+        "and custom CSS, to preview and apply.",
     )
 
 

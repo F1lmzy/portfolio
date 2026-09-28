@@ -9,17 +9,23 @@ Live at **https://f1lmzy.github.io/portfolio/**
 
 ## What it is
 
-A single static page: a header, then a two-column works grid that uses the full
-width. Left column: about, publications, bachelor thesis, technical skills.
-Right column: education, experience, projects. Rows are year-grouped with
-hairline rules, and each entry is title-first with one meta line, so the whole
-page is about three screens instead of a long scroll.
+Two pages, both pre-rendered:
+
+- `index.html` the portfolio: a header, then a two-column works grid that uses
+  the full width. Left column: about, publications, bachelor thesis, technical
+  skills. Right column: education, experience, projects. Rows are year-grouped
+  with hairline rules and each entry is title-first with one meta line, so the
+  page is about three screens instead of a long scroll.
+- `themes.html` the theme picker: a live preview of the site chrome, a search
+  box, a category filter, a random button and all 187 themes as rows with their
+  palettes. It is deliberately not part of the portfolio, and the page is itself
+  the preview of whatever theme you pick.
 
 The theme feature is Monkeytype's: **all 187 themes**, each carrying its exact
 upstream colour tokens, and 47 of them also their own custom CSS (the animated
-carets, the colour-cycling links, the coloured nav pills). Hover a theme in the
-picker to preview it live, click to wear it. The choice is kept in
-`localStorage`, with an inline `<head>` script so a reload does not flash.
+carets, the colour-cycling links, the coloured nav pills). Hover a theme to
+preview it, click to wear it. The choice is kept in `localStorage`, with an
+inline `<head>` script so a reload does not flash.
 
 ## No framework, and why
 
@@ -42,7 +48,7 @@ there, all themes are still listed, and the default Monkeytype theme applies.
 
 | Path | Role |
 |---|---|
-| `build.py` | writes the page and copies assets into `docs/` |
+| `build.py` | writes both pages and copies assets into `docs/` |
 | `render.py` | all HTML generation |
 | `content.py` | the only content file: resume facts, publications, projects |
 | `static/style.css` | layout and typography, driven by the theme tokens |
@@ -54,6 +60,9 @@ there, all themes are still listed, and the default Monkeytype theme applies.
 | `data/monkeytype_themes/` | vendored upstream: `themes.ts` + 52 theme CSS files |
 | `tests/test_site.py` | checks on the built output |
 | `.github/workflows/pages.yml` | builds and deploys `docs/` to GitHub Pages |
+
+`static/app.js` is shared by both pages and every lookup in it is optional, so
+the portfolio page runs the same file with no picker present.
 
 ## How the theming works
 

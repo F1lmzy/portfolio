@@ -8,6 +8,10 @@ These are the failures that actually break a Pages deploy: a link to a file that
 was never built, an absolute path that breaks under /<repo>/, an external asset
 that turns an offline page into a network dependency, or a theme that silently
 lost its colour tokens.
+
+The site is two pages: index.html (the portfolio) and themes.html (the picker).
+Checks are made against whichever page should carry the thing in question, and
+the split itself is asserted, so themes cannot drift back onto the main page.
 """
 
 from __future__ import annotations
@@ -38,7 +42,7 @@ class LinkParser(HTMLParser):
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
-        self.refs: list[tuple[str, str]] = []
+        self.refs: list[tuple[str, str, str]] = []
         self.ids: set[str] = set()
         self.classes: set[str] = set()
         self.tags: list[str] = []
@@ -55,37 +59,39 @@ class LinkParser(HTMLParser):
                 self.refs.append((tag, a[attr], attr))
 
 
-def main() -> int:
-    index_path = DOCS / "index.html"
-    if not index_path.is_file():
-        print("docs/index.html missing. Run: python3 build.py", file=sys.stderr)
-        return 1
-
-    html = index_path.read_text(encoding="utf-8")
+def page(name: str) -> tuple[str, LinkParser]:
+    html = (DOCS / name).read_text(encoding="utf-8")
     parser = LinkParser()
     parser.feed(html)
+    return html, parser
+
+
+def main() -> int:
+    for required in ("index.html", "themes.html"):
+        if not (DOCS / required).is_file():
+            print(f"docs/{required} missing. Run: python3 build.py", file=sys.stderr)
+            return 1
+
+    html, index = page("index.html")
+    themes_html, picker = page("themes.html")
+    PAGES = {"index.html": (html, index), "themes.html": (themes_html, picker)}
 
     themes = json.loads((STATIC / "themes.json").read_text(encoding="utf-8"))
     names = [t["name"] for t in themes]
     themes_css = (STATIC / "themes.css").read_text(encoding="utf-8")
 
-    # ---- every theme is present, in both the markup and the stylesheet
+    # ---- every theme is present, in the picker markup and in the stylesheet
     check(len(themes) == 187, f"expected 187 themes, found {len(themes)}")
     check(len(names) == len(set(names)), "duplicate theme names in themes.json")
-    for name in names:
-        if html.count(f'data-theme-name="{name}"') < 1:
-            check(False, f"theme {name} missing from index.html")
-            break
-    else:
-        check(True, "every theme appears in the picker")
-    for name in names:
-        if f'[data-theme="{name}"]' not in themes_css:
-            check(False, f"theme {name} has no [data-theme] block in themes.css")
-            break
-    else:
-        check(True, "every theme has a scoped block in themes.css")
+    missing_markup = [n for n in names if f'data-theme-name="{n}"' not in themes_html]
+    check(not missing_markup, f"themes missing from themes.html: {missing_markup[:5]}")
+    missing_css = [n for n in names if f'[data-theme="{n}"]' not in themes_css]
+    check(not missing_css, f"themes with no [data-theme] block: {missing_css[:5]}")
 
     # ---- every theme carries all ten tokens
+    token_names = ("--bg", "--main", "--caret", "--sub", "--sub-alt", "--text",
+                   "--error", "--error-extra", "--colorful-error",
+                   "--colorful-error-extra")
     missing_tokens = []
     for name in names:
         block = themes_css.split(f'[data-theme="{name}"] {{', 1)
@@ -93,11 +99,7 @@ def main() -> int:
             missing_tokens.append(name)
             continue
         body = block[1].split("}", 1)[0]
-        for var in ("--bg", "--main", "--caret", "--sub", "--sub-alt", "--text",
-                    "--error", "--error-extra", "--colorful-error",
-                    "--colorful-error-extra"):
-            if f"{var}:" not in body:
-                missing_tokens.append(f"{name}.{var}")
+        missing_tokens += [f"{name}.{v}" for v in token_names if f"{v}:" not in body]
     check(not missing_tokens, f"themes missing tokens: {missing_tokens[:5]}")
 
     # ---- no dead CSS: braces balance, no upstream-only hooks leaked through
@@ -105,37 +107,53 @@ def main() -> int:
     for hook in ("data-focused", "data-ui-element", "#words", ".pageSettings", "crtmode"):
         check(hook not in themes_css, f"upstream hook '{hook}' leaked into themes.css")
 
-    # ---- local refs resolve, and nothing is *loaded* from a third party
-    #      (outbound <a href> links are fine; a remote src or stylesheet is not)
-    external = []
-    for tag, url, attr in parser.refs:
-        if url.startswith(("mailto:", "data:", "#")):
-            continue
-        if url.startswith(("http://", "https://")):
-            if attr == "src" or tag == "link":
-                external.append(url)
-            continue
-        target = (DOCS / url.split("#")[0].split("?")[0]).resolve()
-        check(target.exists(), f"index.html references a missing file: {url}")
-    check(not external,
-          f"the page loads remote assets (would break offline): {external[:3]}")
+    # ---- the split: the picker lives on its own page and nowhere else
+    check("theme-item" not in index.classes,
+          "the theme picker is back on the portfolio page")
+    check("data-theme-name=" not in html,
+          "the portfolio page carries theme rows again")
+    check("theme-item" in picker.classes, "themes.html has no theme rows")
+    check("theme-preview" in picker.classes, "themes.html has no preview pane")
+    for href in ('href="themes.html"', 'href="index.html"'):
+        check(href in themes_html, f"themes.html is missing {href}")
+    check('href="themes.html"' in html, "the portfolio does not link to themes.html")
+    check('href="index.html"' in themes_html, "themes.html does not link back")
 
-    # ---- relative paths only, so a /<repo>/ Pages URL works
-    check('href="/' not in html and 'src="/' not in html,
-          "index.html contains a root-absolute path, which breaks under /<repo>/")
+    # ---- local refs resolve on both pages, and nothing is *loaded* remotely
+    for name, (page_html, parser) in PAGES.items():
+        external = []
+        for tag, url, attr in parser.refs:
+            if url.startswith(("mailto:", "data:")):
+                continue
+            if url.startswith(("http://", "https://")):
+                if attr == "src" or tag == "link":
+                    external.append(url)
+                continue
+            # a link may point at this page or the other one, optionally with a
+            # fragment: the file must exist and the fragment must have a target
+            path, _, frag = url.partition("#")
+            target_page = path or name
+            if path:
+                check((DOCS / path).resolve().exists(),
+                      f"{name} references a missing file: {url}")
+            if frag and target_page in PAGES:
+                check(frag in PAGES[target_page][1].ids,
+                      f"{name}: {url} has no #{frag} target in {target_page}")
+        check(not external,
+              f"{name} loads remote assets (would break offline): {external[:3]}")
+        # ---- relative paths only, so a /<repo>/ Pages URL works
+        check('href="/' not in page_html and 'src="/' not in page_html,
+              f"{name} contains a root-absolute path, which breaks under /<repo>/")
 
-    # ---- in-page anchors all have a target
-    for tag, url, attr in parser.refs:
-        if url.startswith("#") and len(url) > 1:
-            check(url[1:] in parser.ids, f"anchor {url} has no matching id")
-
-    # ---- the content that must be on the page
+    # ---- the content that must be on the portfolio page
     for needle, label in [
         ("National University of Singapore", "NUS education entry"),
         ("Imperial College London", "Imperial exchange entry"),
         ("Kabam Robotics", "Kabam experience entry"),
         ("Institute of High Performance Computing", "A*STAR experience entry"),
         ("StereoGS", "bachelor thesis"),
+        ("Final-year Electrical Engineering student", "final year, exchange finished"),
+        ("Completed year-long exchange", "exchange marked complete"),
         # all six journal articles, including the four the resume omits
         ("Sensors and Actuators A: Physical", "Elsevier journal article"),
         ("10.1016/j.sna.2025.117170", "Elsevier DOI"),
@@ -153,7 +171,7 @@ def main() -> int:
         ("github/F1lmzy", "GitHub link"),
         ("cv.pdf", "CV link"),
     ]:
-        check(needle in html, f"missing from the page: {label}")
+        check(needle in html, f"missing from the portfolio: {label}")
 
     # ---- the layout is the two-column works grid, not one long column
     check('class="works-row"' in html, "the works grid is missing")
@@ -166,41 +184,50 @@ def main() -> int:
                         ("details class=\"drawer\"", "project detail drawers")]:
         check(gone not in html, f"stale description markup still present: {label}")
 
-    # ---- no em dashes anywhere in the visible copy, per the user's standing rule
-    visible = re.sub(r"<script.*?</script>|<style.*?</style>", "", html, flags=re.S)
-    check("\u2014" not in visible, "an em dash appears in the page copy")
+    # ---- no em dashes in any visible copy, per the user's standing rule
+    for name, page_html in (("index.html", html), ("themes.html", themes_html)):
+        visible = re.sub(r"<script.*?</script>|<style.*?</style>", "", page_html, flags=re.S)
+        check("\u2014" not in visible, f"an em dash appears in {name}")
 
     # ---- and no entity that got escaped a second time (renders as "&middot;")
-    for entity in ("&amp;middot;", "&amp;ndash;", "&amp;mdash;", "&amp;nbsp;",
-                   "&amp;amp;", "&amp;#"):
-        check(entity not in html, f"double-escaped entity in the page: {entity}")
-    title = re.search(r"<title>(.*?)</title>", html, re.S)
-    check(bool(title) and "&" not in title.group(1),
-          "the <title> still contains an HTML entity")
+    for name, page_html in (("index.html", html), ("themes.html", themes_html)):
+        for entity in ("&amp;middot;", "&amp;ndash;", "&amp;mdash;", "&amp;nbsp;",
+                       "&amp;amp;", "&amp;#"):
+            check(entity not in page_html,
+                  f"double-escaped entity in {name}: {entity}")
+        title = re.search(r"<title>(.*?)</title>", page_html, re.S)
+        check(bool(title) and "&" not in title.group(1),
+              f"the {name} <title> still contains an HTML entity")
 
-    # ---- the interactive hooks the script depends on still exist
-    for cls in ("theme-item", "theme-preview", "theme-toolbar", "theme-list",
-                "section", "entry", "listing", "year-col", "works-row",
-                "works-col"):
-        check(cls in parser.classes, f"markup lost the .{cls} hook")
+    # ---- the interactive hooks the script depends on
+    for cls in ("theme-item", "theme-preview", "theme-toolbar", "theme-list"):
+        check(cls in picker.classes, f"themes.html lost the .{cls} hook")
+    for cls in ("section", "entry", "listing", "year-col", "works-row", "works-col"):
+        check(cls in index.classes, f"index.html lost the .{cls} hook")
     for el_id in ("theme-list", "theme-search", "theme-filter", "theme-count",
-                  "theme-preview", "theme-current", "theme-random", "contact"):
-        check(el_id in parser.ids, f"markup lost #{el_id}")
+                  "theme-preview", "theme-random"):
+        check(el_id in picker.ids, f"themes.html lost #{el_id}")
+    for el_id in ("theme-current", "contact"):
+        check(el_id in index.ids, f"index.html lost #{el_id}")
+        check(el_id in picker.ids, f"themes.html lost #{el_id}")
 
-    # ---- app.js and style.css reference the same ids/classes they select
+    # ---- app.js and the markup still agree, and the script works on both pages
     app_js = (STATIC / "app.js").read_text(encoding="utf-8")
     for selector in ("theme-list", "theme-search", "theme-filter", "theme-count",
                      "theme-preview", "theme-current", "theme-random"):
         check(f'"{selector}"' in app_js, f"app.js no longer handles {selector}")
     check("data-theme" in app_js, "app.js does not set data-theme")
     check("localStorage" in app_js, "app.js does not persist the theme")
+    # every element app.js looks up must be optional, or the portfolio page throws
+    for guard in ("if (picker)", "if (search)", "if (kindFilter)", "if (random)"):
+        check(guard in app_js, f"app.js is missing the guard {guard}")
 
     # ---- the small script stays small, and nothing ships that we did not build
     check(len(app_js) < 8000, f"static/app.js grew to {len(app_js)} bytes")
     check(not (STATIC / "htmx4.min.js").exists(),
           "a vendored framework is still in static/")
-    for page in ("index.html", "404.html", ".nojekyll"):
-        check((DOCS / page).exists(), f"build output missing {page}")
+    for built in ("index.html", "themes.html", "404.html", ".nojekyll"):
+        check((DOCS / built).exists(), f"build output missing {built}")
 
     print(f"{CHECKS - len(FAILURES)}/{CHECKS} checks passed")
     if FAILURES:

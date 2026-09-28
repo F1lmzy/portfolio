@@ -8,7 +8,7 @@ Do not add a claim without an artifact behind it.
 """
 
 NAME = "Kavin Sriraj"
-TAGLINE = "Electrical Engineering undergraduate · Singapore"
+TAGLINE = "Final-year Electrical Engineering student · Singapore"
 LOCATION = "Singapore"
 
 CONTACT = {
@@ -22,10 +22,11 @@ CONTACT = {
 }
 
 ABOUT = [
-    "I am an Electrical Engineering undergraduate at the National University of "
-    "Singapore, currently on exchange at Imperial College London. My interests sit "
-    "where machine learning meets physical systems: condition monitoring and fault "
-    "diagnosis, computer vision, and embedded firmware that has to run in real time.",
+    "I am a final-year Electrical Engineering student at the National University "
+    "of Singapore, back from a year on exchange at Imperial College London, where "
+    "I did my bachelor thesis. My interests sit where machine learning meets "
+    "physical systems: condition monitoring and fault diagnosis, computer vision, "
+    "and embedded firmware that has to run in real time.",
     "Most recently I built a full-stack robotics dashboard at Kabam Robotics, and "
     "before that a visualisation application for urban fluid dynamics at A*STAR IHPC.",
 ]
@@ -179,7 +180,7 @@ EDUCATION = [
         "degree": "Bachelor of Engineering (Electrical Engineering), Honours",
         "start": "Aug 2023",
         "end": "May 2027",
-        "detail": "Current CAP 4.29 / 5.00, First Class Honours equivalent",
+        "detail": "Final year, CAP 4.29 / 5.00 (First Class Honours equivalent)",
     },
     {
         "school": "Imperial College London",
@@ -187,7 +188,7 @@ EDUCATION = [
         "degree": "Exchange Student, Electrical and Electronic Engineering",
         "start": "Sep 2025",
         "end": "Jun 2026",
-        "detail": "Year-long exchange",
+        "detail": "Completed year-long exchange",
     },
 ]
 
