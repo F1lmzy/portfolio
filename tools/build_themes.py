@@ -87,9 +87,6 @@ SELECTOR_MAP = {
     "input[type=\"submit\"]": "button",
     ".button": "button",
     ".row": ".listing",
-    # the preview pane carries the same class, so a theme's caret styling shows
-    # up in the live preview as well as on the real header
-    "#caret": "#caret, .caret",
     "header": ".site-header",
 }
 
@@ -106,6 +103,8 @@ DROP_TOKENS = [
     ".incorrect", ".error", ".activeWord",
     ":root", "commandLine", ".colorfulMode", ".pageAbout", ".modal",
     "body {", "html {",
+    # the page has no blinking caret element, so a theme's caret styling goes too
+    "#caret",
 ]
 
 DROP_DECL_PROPS = [

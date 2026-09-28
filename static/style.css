@@ -99,21 +99,6 @@ kbd {
 
 .brand-name, .brand-inner { display: inline-block; }
 
-/* the blinking caret: themes style #caret directly, exactly as Monkeytype does.
-   .caret is the same element inside the preview pane, so themes style it too. */
-#caret,
-.caret {
-  display: inline-block;
-  width: .5rem;
-  height: 1.2rem;
-  background: var(--caret);
-  border-radius: 2px;
-  animation: caret-blink 1.06s steps(1, end) infinite;
-  flex: 0 0 auto;
-}
-
-@keyframes caret-blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 1; } }
-
 .brand-sub {
   display: block;
   color: var(--muted);
@@ -309,12 +294,10 @@ button:hover, .btn:hover {
 }
 
 .theme-preview .brand { font-size: 1.35rem; margin-bottom: .1rem; }
-.theme-preview .brand .caret { width: .38rem; height: .95rem; }
 .theme-preview .site-nav { margin: .1rem 0 .55rem; gap: .2rem .3rem; }
 .theme-preview .site-nav a { pointer-events: none; font-size: .82rem; }
 .theme-preview .brand-sub { margin: 0 0 .4rem; font-size: .85rem; }
 .theme-preview .preview-line { font-size: .82rem; margin-bottom: .2rem; max-width: none; }
-.theme-preview .preview-line .caret { width: .3rem; height: .8rem; vertical-align: -.08rem; }
 
 .theme-toolbar {
   display: flex;

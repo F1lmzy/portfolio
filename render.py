@@ -210,8 +210,7 @@ def preview_pane(current: str) -> str:
     return (
         f'<div class="theme-preview" id="theme-preview" data-theme="{esc(current)}">'
         '<div class="brand"><span class="brand-inner">'
-        '<span class="brand-name">Kavin Sriraj</span></span>'
-        '<span class="caret" aria-hidden="true"></span></div>'
+        '<span class="brand-name">Kavin Sriraj</span></span></div>'
         '<p class="brand-sub">Final-year Electrical Engineering student &middot; Singapore</p>'
         '<ul class="site-nav">'
         '<li><a data-nav-item="about" href="index.html#about">about</a></li>'
@@ -222,7 +221,7 @@ def preview_pane(current: str) -> str:
         '<li><a data-nav-item="contact" href="index.html#contact">contact</a></li>'
         "</ul>"
         '<p class="preview-line">Fault diagnosis, computer vision and embedded '
-        'firmware.<span class="caret" aria-hidden="true"></span></p>'
+        "firmware.</p>"
         "</div>"
     )
 
@@ -285,8 +284,7 @@ def header_html(current: str = "") -> str:
     return (
         '<header class="site-header">'
         '<h1 class="brand"><span class="brand-inner">'
-        f'<span class="brand-name">{esc(C.NAME)}</span></span>'
-        '<span id="caret" aria-hidden="true"></span></h1>'
+        f'<span class="brand-name">{esc(C.NAME)}</span></span></h1>'
         f'<p class="brand-sub">{esc(C.TAGLINE)}</p>'
         '<div class="header-links">'
         f'<span>{esc(C.LOCATION)}</span>'
