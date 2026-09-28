@@ -18,6 +18,7 @@ unknown target never takes a whole rule with it).
 from __future__ import annotations
 
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -250,34 +251,125 @@ def contrast(fg: str, bg: str) -> float:
     return (max(a, b) + 0.05) / (min(a, b) + 0.05)
 
 
-def mix_hex(a: str, b: str, weight_a: float) -> str:
-    ra, rb = hex_to_rgb(a), hex_to_rgb(b)
-    return "#%02x%02x%02x" % tuple(
-        round(weight_a * x + (1 - weight_a) * y) for x, y in zip(ra, rb)
+def _srgb_to_linear(v: float) -> float:
+    return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+
+
+def _linear_to_srgb(v: float) -> float:
+    return v * 12.92 if v <= 0.0031308 else 1.055 * v ** (1 / 2.4) - 0.055
+
+
+def hex_to_oklch(value: str) -> tuple[float, float, float]:
+    """sRGB hex to (lightness, chroma, hue) in OKLCH."""
+    r, g, b = (_srgb_to_linear(v / 255) for v in hex_to_rgb(value))
+    l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b
+    m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b
+    s = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b
+    l_, m_, s_ = (c ** (1 / 3) if c >= 0 else -((-c) ** (1 / 3)) for c in (l, m, s))
+    L = 0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_
+    a = 1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_
+    bb = 0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_
+    return L, math.hypot(a, bb), math.atan2(bb, a)
+
+
+def _oklch_to_rgb(L: float, a: float, b: float) -> tuple[float, float, float]:
+    l_ = L + 0.3963377774 * a + 0.2158037573 * b
+    m_ = L - 0.1055613458 * a - 0.0638541728 * b
+    s_ = L - 0.0894841775 * a - 1.2914855480 * b
+    l, m, s = l_ ** 3, m_ ** 3, s_ ** 3
+    return (
+        4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+        -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+        -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
     )
 
 
-def readable(colour: str, bg: str, target: float = 4.5) -> str:
-    """Push a colour toward white or black until it clears `target` against `bg`.
+CHROMA_CAP = 1.5
 
-    A handful of upstream themes fail this against their own background even for
-    body text (frozen_llama ships pale text on a pale background at 1.3:1), which
-    makes the page unreadable rather than stylish. The hue is kept: the colour is
-    only mixed toward white or black. Both directions are tried and the better one
-    wins, because background luminance does not settle it: honey's background
-    #f2aa00 is saturated mid-luminance, where black reaches 10:1 but white only 2:1.
+
+def _at(L: float, C: float, H: float, cap: float = CHROMA_CAP) -> str | None:
+    """The colour at this lightness: chroma as high as sRGB allows at that
+    lightness, never more than `cap` times the theme's own.
+
+    A colour that has to move in lightness should not lose its colour on the way.
+    Darkening serika's yellow for a light background can support *more* chroma than
+    the original, and using it is the difference between a gold heading and mud.
+    The cap exists so a nearly grey theme is not handed saturation it never had.
+    """
+    if not 0.0 <= L <= 1.0:
+        return None
+    a, b = C * math.cos(H), C * math.sin(H)
+    lo, hi = 0.0, cap  # in-gamut chroma is a single interval from 0, so bisect it
+    for _ in range(24):
+        mid = (lo + hi) / 2
+        if all(-1e-4 <= v <= 1 + 1e-4 for v in _oklch_to_rgb(L, a * mid, b * mid)):
+            lo = mid
+        else:
+            hi = mid
+    # achromatic is in gamut for every lightness, so this always has a fallback:
+    # it is what keeps white and black reachable at the ends of a search
+    return _hex_of(_oklch_to_rgb(L, a * lo, b * lo))
+
+
+def _hex_of(rgb: tuple[float, float, float]) -> str:
+    return "#%02x%02x%02x" % tuple(
+        max(0, min(255, round(_linear_to_srgb(max(0.0, min(1.0, v))) * 255)))
+        for v in rgb
+    )
+
+
+def lift(colour: str, bg: str, target: float = 4.5) -> str:
+    """Move a colour's lightness until it clears `target` against `bg`, keeping its
+    hue and as much chroma as the sRGB gamut allows.
+
+    Mixing toward white or black desaturates, and that is what made 187 very
+    different themes converge on the same washed grey. Correcting in OKLCH instead
+    means a theme's own colour survives: when serika's yellow has to darken to be
+    readable on serika's light grey, it stays yellow rather than turning mud. Only
+    lightness moves, only as far as the target needs, and the direction is chosen by
+    measurement rather than assumption: honey's background #f2aa00 is a saturated
+    mid-tone where black reaches 10:1 but white only 2:1.
     """
     if contrast(colour, bg) >= target:
         return colour
-    best = colour
-    for toward in ("#ffffff", "#000000"):
-        for weight in (0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.0):
-            candidate = mix_hex(colour, toward, weight)
-            if contrast(candidate, bg) >= target:
-                return candidate
-            if contrast(candidate, bg) > contrast(best, bg):
-                best = candidate
+    L, C, H = hex_to_oklch(colour)
+    reachable: list[tuple[float, str]] = []
+    for lighten in (True, False):
+        end = _at(1.0 if lighten else 0.0, C, H)
+        if not end or contrast(end, bg) < target:
+            continue
+        lo, hi = (L, 1.0) if lighten else (0.0, L)
+        for _ in range(28):
+            mid = (lo + hi) / 2
+            got = _at(mid, C, H)
+            if got and contrast(got, bg) >= target:
+                if lighten:
+                    hi = mid
+                else:
+                    lo = mid
+            elif lighten:
+                lo = mid
+            else:
+                hi = mid
+        picked = _at(hi if lighten else lo, C, H)
+        if picked:
+            reachable.append((abs((hi if lighten else lo) - L), picked))
+    if reachable:
+        return min(reachable)[1]
+    best = colour  # nothing reaches the target: take whichever end gets closest
+    for probe in (_at(1.0, C, H), _at(0.0, C, H)):
+        if probe and contrast(probe, bg) > contrast(best, bg):
+            best = probe
     return best
+
+
+def readable(colour: str, bg: str, target: float = 4.5) -> str:
+    """A readable version of `colour` on `bg`, hue and chroma preserved.
+
+    Body text matters most: frozen_llama ships pale text on a pale background at
+    1.3:1, which is unreadable rather than stylish.
+    """
+    return lift(colour, bg, target)
 
 
 def muted_colour(theme: dict) -> str:
@@ -292,18 +384,26 @@ def muted_colour(theme: dict) -> str:
     upstream `text` is itself the low-contrast colour, mixing toward it would
     make things worse.
     """
-    bg, sub, text = theme["bg"], theme["sub"], theme["text"]
+    sub, bg = theme["sub"], theme["bg"]
     if contrast(sub, bg) >= 4.5:
         return sub
-    for weight in (0.75, 0.55, 0.35, 0.2):
-        candidate = mix_hex(sub, text, weight)
-        if contrast(candidate, bg) >= 4.5:
-            return candidate
-    return readable(text, bg)
+    return lift(sub, bg, 4.5)
 
 
 def text_colour(theme: dict) -> str:
-    return readable(theme["text"], theme["bg"])
+    return lift(theme["text"], theme["bg"], 4.5)
+
+
+def accent_colour(theme: dict, target: float = 4.5) -> str:
+    """The theme's `main`, made legible as type.
+
+    Monkeytype spends `main` on the caret and on filled buttons, so on its own
+    background it is often below text contrast: 82 of 187 themes fail 4.5:1, and
+    serika's yellow on its light grey is the worst at 1.46:1. Headings, links and
+    the name are exactly where that signature colour belongs, so it is lifted
+    rather than abandoned for grey.
+    """
+    return lift(theme["main"], theme["bg"], target)
 
 
 def map_selector_part(sel: str) -> str | None:
@@ -457,14 +557,22 @@ def main() -> int:
         if missing:
             print(f"WARN {name}: missing tokens {missing}", file=sys.stderr)
         effective = dict(t)
-        note = ""
+        notes = []
         if text_colour(t).lower() != t["text"].lower():
             # a few upstream themes ship body text under 4.5:1 on their own
             # background; keep the note in the output so the deviation is visible
-            note = f"  /* --text lifted from {t['text']} to stay readable */\n"
+            notes.append(f"--text lifted from {t['text']}")
             effective["text"] = text_colour(t)
+        accent = accent_colour(t)
+        if accent.lower() != t["main"].lower():
+            notes.append(f"--accent lifted from {t['main']}")
+        note = "".join(f"  /* {n} to stay readable */\n" for n in notes)
         toks = "\n".join(f"  {VAR[k]}: {effective[k]};" for k in TOKENS if k in effective)
         toks += f"\n  --muted: {muted_colour(t)};"
+        # --accent is for type (headings, links, the name); --accent-soft for
+        # decoration that only has to be seen, not read (selected rows, tint fills)
+        toks += f"\n  --accent: {accent};"
+        toks += f"\n  --accent-soft: {accent_colour(t, 3.0)};"
         chunk = [f'[data-theme="{name}"] {{\n{note}{toks}\n}}']
         fx = False
         rules = 0
@@ -494,6 +602,28 @@ def main() -> int:
     OUT_CSS.write_text(header + "\n" + kf + "\n\n" + "\n\n".join(blocks) + "\n", encoding="utf-8")
     OUT_JSON.write_text(json.dumps(meta, indent=1) + "\n", encoding="utf-8")
 
+    # A colour the page paints text with must clear its floor, or the theme is
+    # quietly unreadable. This is a build error rather than a warning: it means
+    # lift() failed, which is exactly how the washed-out colours got shipped once.
+    floors = (
+        (4.5, "text", lambda t: text_colour(t)),
+        (4.5, "muted", lambda t: muted_colour(t)),
+        (4.5, "accent", lambda t: accent_colour(t)),
+        (3.0, "accent-soft", lambda t: accent_colour(t, 3.0)),
+    )
+    unreadable = []
+    for name, t in themes.items():
+        for floor, label, fn in floors:
+            value = fn(t)
+            got = contrast(value, t["bg"])
+            if got < floor - 0.01:
+                unreadable.append(f"{name}.{label} {value} {got:.2f}:1 < {floor}")
+    if unreadable:
+        print(f"FAIL {len(unreadable)} theme colours under their floor:", file=sys.stderr)
+        for line in unreadable[:10]:
+            print("  " + line, file=sys.stderr)
+        return 1
+
     print(f"themes:            {len(themes)}")
     print(f"ported css rules:  {ported}")
     print(f"keyframes:         {len(keyframes)}")
@@ -505,8 +635,14 @@ def main() -> int:
     worst = sorted(themes, key=lambda n: contrast(muted_colour(themes[n]), themes[n]["bg"]))[:3]
     print(f"muted lifted for readability: {lifted}/{len(themes)} themes")
     print(f"body text lifted (upstream under 4.5:1): {len(text_fixed)} {text_fixed}")
+    accented = sum(1 for t in themes.values()
+                   if accent_colour(t).lower() != t["main"].lower())
+    print(f"accent lifted for headings/links: {accented}/{len(themes)} themes")
     print("lowest muted contrast: " + ", ".join(
         f"{n} {contrast(muted_colour(themes[n]), themes[n]['bg']):.2f}:1" for n in worst))
+    worst_accent = sorted(themes, key=lambda n: contrast(accent_colour(themes[n]), themes[n]["bg"]))[:3]
+    print("lowest accent contrast: " + ", ".join(
+        f"{n} {contrast(accent_colour(themes[n]), themes[n]['bg']):.2f}:1" for n in worst_accent))
     print(f"wrote static/themes.css  ({OUT_CSS.stat().st_size} bytes)")
     print(f"wrote static/themes.json ({OUT_JSON.stat().st_size} bytes)")
     return 0

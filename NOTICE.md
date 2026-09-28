@@ -20,5 +20,6 @@ script, the build tooling and the content) is the author's own work.
 
 The theme colour values themselves are the themes' published palettes and are
 reproduced unchanged, apart from two documented readability adjustments in
-build_themes.py: --muted, and --text where an upstream theme's own body text
+build_themes.py: --muted, --accent and --accent-soft, and --text where an upstream
+theme's own body text
 falls below a 4.5:1 contrast ratio against its own background.

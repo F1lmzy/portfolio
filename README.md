@@ -79,28 +79,51 @@ custom CSS file, then:
 - flattens nested `&` blocks into plain selectors
 - maps Monkeytype's hooks onto this site: `[data-nav-item="test"]` to this nav's
   `about` (and so on down the nav, by position), `[data-ui-element="logoText"]`
-  to `.brand-name`, `#caret` to `#caret, .caret` so the preview pane is themed too
+  to `.brand-name`
 - renames `--main-color` style variables to this site's `--main` style ones
 - splits selector lists and drops only the parts naming elements this site does
   not have (`#words`, `.word`, `.pageSettings`, `crtmode`, svg logos), so one
   unknown target never takes a whole rule down with it
 - hoists the 25 `@keyframes` once, globally
 
-The run reports what it did: 187 themes, 216 ported rules, 25 keyframes, 17
-themes with real animation.
+The run reports what it did: 187 themes, 208 ported rules, 25 keyframes, 17
+themes with real animation, and it exits non-zero if any theme ends up unreadable.
 
-### The one deliberate deviation from upstream
+### Which token paints what
 
-Monkeytype colours a typing test, where the `sub` colour marks text you have not
-typed yet and is meant to be faint. On a page of prose that lands near 2:1
-contrast, so `--muted` is computed per theme: the smallest mix of `sub` toward
-`text` that reaches 4.5:1 against that theme's background. 146 of 187 themes are
-lifted; the rest already passed and ship exactly as upstream. A further 32 themes
-fail 4.5:1 for their *own body text* on their own background (frozen_llama is
-#ffffff on #9bf2ea, 1.3:1), so those get the same treatment on `--text`, with the
-original value left in a comment in the generated CSS. The direction is chosen by
-measurement rather than by assuming text is lighter than the background: honey's
-background is saturated mid-luminance, where black reaches 10:1 and white only 2:1.
+| Token | What it paints | Why |
+|---|---|---|
+| `--bg` | the page background | the theme's background, untouched |
+| `--text` | body prose | Monkeytype's typed-text colour, the bulk of the reading |
+| `--accent` | headings, the name, links, active nav | the theme's signature colour, so 187 themes don't all read as one grey page |
+| `--accent-soft` | selected rows, focus rings | the same hue where it only has to be seen, not read |
+| `--muted` | metadata, years, tags, footer | from `sub`, which upstream tunes for untyped words |
+| `--caret`, `--error` | nothing, or reserved | kept for fidelity |
+
+### The deliberate deviations from upstream
+
+Monkeytype colours a *typing test*, and two of its tokens are tuned for that rather
+than for prose:
+
+- `sub` marks text you have not typed yet and is meant to be faint, landing near
+  2:1 on a page of prose. 146 of 187 themes need it lifted for `--muted`.
+- `main` is spent on the caret and on filled buttons, so on its own background it
+  often fails as type: 82 of 187 themes are under 4.5:1, serika's yellow on its own
+  light grey worst at 1.46:1. All 82 get lifted for `--accent`. 32 themes fail
+  4.5:1 even for their *own body text* (frozen_llama is #ffffff on #9bf2ea, 1.3:1),
+  and those are lifted for `--text`.
+
+The corrections are done in OKLCH, moving lightness only: hue cannot drift, and
+chroma is pushed to whatever sRGB allows at the new lightness (capped at 1.5 times
+the theme's own, so a nearly grey theme is not handed saturation it never had). This
+is the difference between serika's headings being gold on its light background and
+being mud. Mixing toward white or black, which is the obvious way to do it, is what
+made every light theme converge on the same washed grey.
+
+The direction of the move is chosen by measurement, not by assuming text is lighter
+than background: honey's background is saturated mid-luminance, where black reaches
+10:1 and white only 2:1. Where a colour had to move, the generated CSS keeps the
+upstream value in a comment.
 
 ## Content
 

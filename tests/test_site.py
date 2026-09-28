@@ -59,6 +59,27 @@ class LinkParser(HTMLParser):
                 self.refs.append((tag, a[attr], attr))
 
 
+def _lum(value: str) -> float:
+    h = value.lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    chans = []
+    for i in (0, 2, 4):
+        v = int(h[i:i + 2], 16) / 255
+        chans.append(v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * chans[0] + 0.7152 * chans[1] + 0.0722 * chans[2]
+
+
+def contrast(a: str, b: str) -> float:
+    la, lb = _lum(a), _lum(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def token_of(block: str, name: str) -> str | None:
+    match = re.search(rf"{name}:\s*(#[0-9a-fA-F]{{3,6}})\s*;", block)
+    return match.group(1) if match else None
+
+
 def page(name: str) -> tuple[str, LinkParser]:
     html = (DOCS / name).read_text(encoding="utf-8")
     parser = LinkParser()
@@ -106,6 +127,44 @@ def main() -> int:
     check(themes_css.count("{") == themes_css.count("}"), "themes.css braces unbalanced")
     for hook in ("data-focused", "data-ui-element", "#words", ".pageSettings", "crtmode"):
         check(hook not in themes_css, f"upstream hook '{hook}' leaked into themes.css")
+
+    # ---- every colour the page paints text with clears its contrast floor.
+    # This is asserted on the generated file rather than the builder's own report,
+    # because a theme that is quietly unreadable (or washed out) is exactly the bug
+    # this check exists to catch.
+    unreadable, missing_derived = [], []
+    for name in names:
+        split = themes_css.split(f'[data-theme="{name}"] {{', 1)
+        block = split[1].split("\n}", 1)[0] if len(split) > 1 else ""
+        bg = token_of(block, "--bg")
+        for token, floor in (("--text", 4.5), ("--muted", 4.5), ("--accent", 4.5),
+                             ("--accent-soft", 3.0)):
+            value = token_of(block, token)
+            if not value:
+                missing_derived.append(f"{name}.{token}")
+            elif bg and contrast(value, bg) < floor - 0.01:
+                unreadable.append(f"{name} {token} {contrast(value, bg):.2f}:1")
+    check(not missing_derived, f"themes with no derived colour: {missing_derived[:5]}")
+    check(not unreadable, f"theme colours under their floor: {unreadable[:5]}")
+    # the accent must actually be the theme's own hue, not a grey: the lifted colour
+    # should stay near the hue of the raw "main" it came from
+    sampled = [n for n in ("serika", "nord_light", "honey", "vaporwave", "frozen_llama")
+               if n in names]
+    for name in sampled:
+        block = themes_css.split(f'[data-theme="{name}"] {{', 1)[1].split("\n}", 1)[0]
+        accent, main = token_of(block, "--accent"), token_of(block, "--main")
+        if accent and main:
+            def hue_parts(h: str) -> tuple[float, float, float]:
+                h = h.lstrip("#")
+                r, g, b = (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+                mx, mn = max(r, g, b), min(r, g, b)
+                return mx, mx - mn, mx - mn / (mx + 1e-9)
+            _, sat_a, _ = hue_parts(accent)
+            _, sat_m, _ = hue_parts(main)
+            # a lifted accent keeps some of the original colourfulness: a pure grey
+            # (saturation 0) would mean the lift did what it used to do
+            check(sat_a > min(sat_m, 0.35) * 0.45,
+                  f"{name}: accent {accent} lost the hue of main {main}")
 
     # ---- the split: the picker lives on its own page and nowhere else
     check("theme-item" not in index.classes,
@@ -224,6 +283,23 @@ def main() -> int:
     for el_id in ("theme-current", "contact"):
         check(el_id in index.ids, f"index.html lost #{el_id}")
         check(el_id in picker.ids, f"themes.html lost #{el_id}")
+
+    # ---- the stylesheet keeps the token-to-role mapping it claims
+    style_css = (STATIC / "style.css").read_text(encoding="utf-8")
+    headings_rule = re.search(r"\.section > h2 \{(.*?)\}", style_css, re.S)
+    check(bool(headings_rule) and "var(--accent)" in headings_rule.group(1),
+          "section headings no longer carry the theme accent")
+    brand_rule = re.search(r"\.brand \{(.*?)\}", style_css, re.S)
+    check(bool(brand_rule) and "var(--accent)" in brand_rule.group(1),
+          "the name no longer carries the theme accent")
+    check(re.search(r"(?m)^a \{[^}]*var\(--accent\)", style_css) is not None,
+          "links no longer carry the theme accent")
+    # --main is Monkeytype's caret/button colour: it must not paint type, because it
+    # fails 4.5:1 on 82 of 187 themes
+    check("color: var(--main)" not in style_css,
+          "type is painted with --main again, which is unreadable on many themes")
+    for token in ("--accent", "--accent-soft", "--muted"):
+        check(token in style_css, f"style.css does not reference {token}")
 
     # ---- app.js and the markup still agree, and the script works on both pages
     app_js = (STATIC / "app.js").read_text(encoding="utf-8")
