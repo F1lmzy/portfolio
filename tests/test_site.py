@@ -148,6 +148,14 @@ def main() -> int:
     visible = re.sub(r"<script.*?</script>|<style.*?</style>", "", html, flags=re.S)
     check("\u2014" not in visible, "an em dash appears in the page copy")
 
+    # ---- and no entity that got escaped a second time (renders as "&middot;")
+    for entity in ("&amp;middot;", "&amp;ndash;", "&amp;mdash;", "&amp;nbsp;",
+                   "&amp;amp;", "&amp;#"):
+        check(entity not in html, f"double-escaped entity in the page: {entity}")
+    title = re.search(r"<title>(.*?)</title>", html, re.S)
+    check(bool(title) and "&" not in title.group(1),
+          "the <title> still contains an HTML entity")
+
     # ---- the interactive hooks the script depends on still exist
     for cls in ("theme-item", "theme-preview", "theme-toolbar", "theme-list",
                 "filter-nav", "section", "entry"):

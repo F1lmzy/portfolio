@@ -410,7 +410,7 @@ def index_page() -> str:
         + footer_html(DEFAULT_THEME)
     )
     return shell(
-        f"{C.NAME} &middot; Electrical Engineering",
+        f"{C.NAME} \u00b7 Electrical Engineering",
         body,
         "Kavin Sriraj, Electrical Engineering undergraduate at the National "
         "University of Singapore. Publications, projects, thesis and experience.",
