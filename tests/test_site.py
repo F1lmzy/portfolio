@@ -177,6 +177,20 @@ def main() -> int:
     check('class="works-row"' in html, "the works grid is missing")
     check(html.count('class="works-col"') == 2,
           f"expected 2 works columns, found {html.count('class=\"works-col\"')}")
+    # ---- the thesis leads the papers, and the nav head follows the page head
+    check(html.index('id="thesis"') < html.index('id="publications"'),
+          "the thesis no longer comes before publications")
+    nav_targets = re.findall(r'<a href="index\.html#([a-z-]+)" data-nav-item=', html)
+    check(len(nav_targets) >= 6, f"only {len(nav_targets)} nav links into the page")
+    for target in nav_targets:
+        check(bool(re.search(rf'id="{target}"', html)),
+              f"the nav links to #{target} but nothing has that id")
+    # the nav's leading entries mirror the left column; its tail is ordered by
+    # importance, not by position, so only the head is compared
+    page_sections = re.findall(r'<section class="section" id="([a-z-]+)"', html)
+    check(nav_targets[:3] == page_sections[:3],
+          f"nav head {nav_targets[:3]} != page head {page_sections[:3]}")
+    check("thesis" in nav_targets, "the nav lost its thesis entry")
     # ---- and the entries are title-only: no leftover descriptions
     for gone, label in [("data-topics=", "publication topic attributes"),
                         ("data-kind=", "project kind attributes"),

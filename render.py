@@ -262,8 +262,8 @@ def theme_section(current: str) -> str:
 def nav_html(current: str = "") -> str:
     items = [
         ("about", "about", "index.html#about"),
-        ("publications", "papers", "index.html#publications"),
         ("thesis", "thesis", "index.html#thesis"),
+        ("publications", "papers", "index.html#publications"),
         ("projects", "projects", "index.html#projects"),
         ("experience", "experience", "index.html#experience"),
         ("education", "education", "index.html#education"),
@@ -329,9 +329,10 @@ def shell(title: str, body: str, description: str) -> str:
 
 
 def index_page() -> str:
-    # the two columns are balanced by measured height: About + Publications +
-    # Thesis + Skills against Education + Experience + Projects
-    left = about_html() + publications_html() + thesis_html() + skills_html()
+    # the two columns are balanced by measured height: About + Thesis +
+    # Publications + Skills against Education + Experience + Projects. The
+    # thesis leads the papers: it is the newer, larger piece of work.
+    left = about_html() + thesis_html() + publications_html() + skills_html()
     right = education_html() + experience_html() + projects_html()
     body = (
         header_html()
@@ -346,8 +347,8 @@ def index_page() -> str:
     return shell(
         f"{C.NAME} \u00b7 Electrical Engineering",
         body,
-        "Kavin Sriraj, Electrical Engineering undergraduate at the National "
-        "University of Singapore. Publications, projects, thesis and experience.",
+        "Kavin Sriraj, final-year Electrical Engineering student at the National "
+        "University of Singapore. Thesis, publications, projects and experience.",
     )
 
 
