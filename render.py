@@ -211,7 +211,7 @@ def preview_pane(current: str) -> str:
         f'<div class="theme-preview" id="theme-preview" data-theme="{esc(current)}">'
         '<div class="brand"><span class="brand-inner">'
         '<span class="brand-name">Kavin Sriraj</span></span></div>'
-        '<p class="brand-sub">Final-year Electrical Engineering student &middot; Singapore</p>'
+        f'<p class="brand-sub">{esc(C.TAGLINE)}</p>'
         '<ul class="site-nav">'
         '<li><a data-nav-item="about" href="index.html#about">about</a></li>'
         '<li><a data-nav-item="publications" href="index.html#publications">papers</a></li>'

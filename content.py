@@ -8,7 +8,7 @@ Do not add a claim without an artifact behind it.
 """
 
 NAME = "Kavin Sriraj"
-TAGLINE = "Final-year Electrical Engineering student · Singapore"
+TAGLINE = "Final-year Electrical Engineering student"
 LOCATION = "Singapore"
 
 CONTACT = {

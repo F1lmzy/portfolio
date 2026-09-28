@@ -232,6 +232,18 @@ def main() -> int:
     ]:
         check(needle in html, f"missing from the portfolio: {label}")
 
+    # ---- the header says where he is once: the tagline used to repeat the
+    # location that the facts row already carries
+    header_block = html.split('<header class="site-header">', 1)[1].split("</header>", 1)[0]
+    check(header_block.count("Singapore") == 1,
+          f"the header names the location {header_block.count('Singapore')} times")
+    tagline = re.search(r'<p class="brand-sub">(.*?)</p>', header_block, re.S)
+    check(bool(tagline) and "Final-year Electrical Engineering student" in tagline.group(1),
+          "the tagline is missing from the header")
+    # the picker's mock header shows the real tagline rather than its own copy
+    check(bool(tagline) and tagline.group(1).strip() in themes_html,
+          "the picker preview drifted from the real tagline")
+
     # ---- the layout is the two-column works grid, not one long column
     check('class="works-row"' in html, "the works grid is missing")
     check(html.count('class="works-col"') == 2,
