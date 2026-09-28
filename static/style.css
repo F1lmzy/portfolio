@@ -1,7 +1,8 @@
 /* Base stylesheet. Colours come only from the Monkeytype theme tokens in
    themes.css (generated), so the page is themed by whichever [data-theme] block
-   is active. The defaults below are Monkeytype's stock serika_dark, which is what
-   applies if themes.css has not been generated yet.
+   is active. The defaults below are the site default theme, godspeed, and they are
+   what applies if themes.css has not been generated yet. Keep them in step with
+   DEFAULT_THEME in render.py.
 
    Which token paints what, following Monkeytype's own meaning for each token:
 
@@ -25,12 +26,13 @@
    tight vertical rhythm, not from small type. */
 
 :root {
-  --bg: #323437;
-  --main: #e2b714;
-  --caret: #e2b714;
-  --sub: #646669;
-  --sub-alt: #2c2e31;
-  --text: #d1d0c5;
+  /* godspeed, the default theme */
+  --bg: #eae4cf;
+  --main: #9abbcd;
+  --caret: #f4d476;
+  --sub: #ada998;
+  --sub-alt: #ded9c9;
+  --text: #646669;
   --error: #ca4754;
   --error-extra: #7e2a33;
   --colorful-error: #ca4754;
@@ -38,9 +40,9 @@
 
   /* derived, and per theme in themes.css: --muted, --accent, --accent-soft are
      computed for every theme at build time by tools/build_themes.py */
-  --muted: #ababa5;
-  --accent: #e2b714;
-  --accent-soft: #e2b714;
+  --muted: #6c664f;
+  --accent: #3b6c84;
+  --accent-soft: #5788a2;
   --line: color-mix(in srgb, var(--sub) 45%, transparent);
   --line-soft: color-mix(in srgb, var(--sub) 25%, transparent);
   --hover-bg: color-mix(in srgb, var(--accent) 9%, transparent);

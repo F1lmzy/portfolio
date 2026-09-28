@@ -202,6 +202,23 @@ def main() -> int:
             check(sat_a > min(sat_m, 0.35) * 0.45,
                   f"{name}: accent {accent} lost the hue of main {main}")
 
+    # ---- the default theme is a real theme, so the first paint is not a fallback
+    default_theme = re.search(r'<html lang="en" data-theme="([a-z_0-9]+)"', html)
+    check(bool(default_theme), "index.html has no data-theme on <html>")
+    check(default_theme.group(1) == "godspeed",
+          f"the default theme is {default_theme.group(1) if default_theme else None}, not godspeed")
+    check(default_theme.group(1) in names,
+          f"the default theme {default_theme.group(1)} is not one of the themes")
+    check(f'data-theme="{default_theme.group(1)}"' in themes_html,
+          "themes.html does not default to the same theme")
+    # and the :root fallback in style.css must be that same theme, not a stale one
+    root_block = re.search(r":root \{(.*?)\}", (STATIC / "style.css").read_text(), re.S).group(1)
+    for token in ("--bg", "--text", "--accent"):
+        value = token_of(root_block, token)
+        themed = token_of(themes_css.split(f'[data-theme="godspeed"] {{', 1)[1].split("\n}", 1)[0], token)
+        check(bool(value) and value == themed,
+              f"style.css :root {token} is {value}, godspeed ships {themed}")
+
     # ---- the split: the picker lives on its own page and nowhere else
     check("theme-item" not in index.classes,
           "the theme picker is back on the portfolio page")

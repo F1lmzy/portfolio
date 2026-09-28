@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parent
 STATIC = ROOT / "static"
 
 THEMES: list[dict] = json.loads((STATIC / "themes.json").read_text(encoding="utf-8"))
-DEFAULT_THEME = "serika_dark"
+DEFAULT_THEME = "godspeed"
 
 FAVICON = (
     "data:image/svg+xml,"

@@ -68,7 +68,7 @@ the portfolio page runs the same file with no picker present.
 
 `static/themes.css` holds one `[data-theme="<name>"]` block per theme: the ten
 Monkeytype tokens, plus for 47 themes that theme's own CSS rewritten to this
-site's markup. The page renders with `data-theme="serika_dark"` on `<html>`, and
+site's markup. The page renders with `data-theme="godspeed"` on `<html>`, and
 `static/app.js` swaps that attribute and saves it. There is no per-theme
 stylesheet to fetch, so switching is instant and works offline.
 
