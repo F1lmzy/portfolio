@@ -180,7 +180,7 @@ EDUCATION = [
         "degree": "Bachelor of Engineering (Electrical Engineering), Honours",
         "start": "Aug 2023",
         "end": "May 2027",
-        "detail": "Final year, CAP 4.29 / 5.00 (First Class Honours equivalent)",
+        "detail": "Final year, First Class Honours equivalent",
     },
     {
         "school": "Imperial College London",
